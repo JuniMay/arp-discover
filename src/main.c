@@ -81,10 +81,13 @@ void send_arp_request(
   ethernet_header->ether_type = htons(0x0806);
 
   // fill arp header
+  // this is ethernet
   arp_packet->hardware_type = htons(0x0001);
+  // this is ipv4
   arp_packet->protocol_type = htons(0x0800);
   arp_packet->mac_addr_len = 6;
   arp_packet->ip_addr_len = 4;
+  // this is arp request
   arp_packet->operation = htons(0x0001);
   memcpy(arp_packet->sender_mac.addr, src_mac->addr, 6);
   arp_packet->sender_ip = src_ip;
@@ -121,8 +124,11 @@ void listen_arp(pcap_t* handle, ipv4_addr_t expected_ip, mac_addr_t* mac) {
       (arp_packet_t*)(packet + sizeof(ethernet_header_t));
 
     if (
+      // thernet frame type is arp
       ntohs(ethernet_header->ether_type) == 0x0806 &&
+      // arp operation is reply
       ntohs(arp_packet->operation) == 0x0002 &&
+      // target ip is expected ip
       arp_packet->sender_ip == expected_ip
     ) {
       printf("received arp reply\n");
@@ -170,17 +176,21 @@ int get_host_mac(pcap_if_t* device, ipv4_addr_t ip, mac_addr_t* mac) {
     return 1;
   }
 
+  // the pseudo source mac address
   mac_addr_t pseudo_src_mac;
+  // 10.10.10.10
+  // just a random ip address
   ipv4_addr_t pseudo_src_ipv4_addr = 0x0a0a0a0a;
-
+  // set mac to be f0:f0:f0:f0:f0:f0
   memset(&pseudo_src_mac, 0xf0, sizeof(pseudo_src_mac));
+  // send arp request
   send_arp_request(handle, pseudo_src_ipv4_addr, &pseudo_src_mac, ip);
+  // listen arp reply
   listen_arp(handle, ip, mac);
+
   pcap_close(handle);
   return 0;
 #else
-  // On MAC, the network device does not enable promiscuous mode by default.
-  // so directly get the mac address from ifaddrs.
   struct ifaddrs* ifaddrs;
   if (getifaddrs(&ifaddrs) == -1) {
     fprintf(stderr, "error in getifaddrs\n");
@@ -249,6 +259,7 @@ int main() {
 
   pcap_addr_t* address;
 
+  // get the first ipv4 address
   for (address = device->addresses;
        address != NULL && address->addr->sa_family != AF_INET;
        address = address->next)
@@ -291,8 +302,8 @@ int main() {
   }
 
   printf(
-    "target ip: %u.%u.%u.%u\n", (target_ip >> 0) & 0xff, (target_ip >> 8) & 0xff,
-    (target_ip >> 16) & 0xff, (target_ip >> 24) & 0xff
+    "target ip: %u.%u.%u.%u\n", (target_ip >> 0) & 0xff,
+    (target_ip >> 8) & 0xff, (target_ip >> 16) & 0xff, (target_ip >> 24) & 0xff
   );
 
   // open handle
@@ -327,6 +338,6 @@ int main() {
 
   pcap_close(handle);
   pcap_freealldevs(alldevs);
-  
+
   return 0;
 }
