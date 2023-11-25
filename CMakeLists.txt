@@ -12,5 +12,5 @@ else()
     find_library(PCAP_LIBRARY pcap)
 endif()
 
-add_executable(arp_discover src/main.c)
+add_executable(arp_discover main.c)
 target_link_libraries(arp_discover ${PCAP_LIBRARY})
